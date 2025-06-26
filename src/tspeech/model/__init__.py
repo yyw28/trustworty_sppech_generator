@@ -1,1 +1,1 @@
-from tspeech.model.model import ExampleModel
+from tspeech.model.hubert import HubertModel

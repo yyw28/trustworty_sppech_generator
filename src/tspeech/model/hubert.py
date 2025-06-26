@@ -4,7 +4,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 
-class ExampleModel(pl.LightningModule):
+class HubertModel(pl.LightningModule):
     def __init__(self):
         super().__init__()
         self.save_hyperparameters()
