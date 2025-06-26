@@ -1,0 +1,1 @@
+from tspeech.model.model import ExampleModel

@@ -2,8 +2,8 @@ from lightning.pytorch.cli import LightningCLI
 import torch
 
 # simple demo classes for your convenience
-from project.model import ExampleModel
-from project.data import ExampleDataModule
+from tspeech.model import ExampleModel
+from tspeech.data import ExampleDataModule
 
 
 def cli_main():
