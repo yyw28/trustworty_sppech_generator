@@ -8,11 +8,11 @@ from tspeech.common.data import TrustworthinessAudioBatch
 
 
 class TrustworthinessClassifier(pl.LightningModule):
-    def __init__(self, model: str):
+    def __init__(self, hubert_model_name: str):
         super().__init__()
         self.save_hyperparameters()
 
-        self.hubert = HubertModel.from_pretrained(model)
+        self.hubert = HubertModel.from_pretrained(hubert_model_name)
         self.linear = nn.Sequential(nn.Linear(self.hubert.config.hidden_size, 1))
 
     def forward(self, wav: Tensor, mask: Tensor) -> Tensor:
