@@ -1,10 +1,7 @@
-import torch
 from lightning import pytorch as pl
 from torch import Tensor, nn
 from torch.nn import functional as F
 from transformers import HubertModel
-
-from tspeech.common.data import TrustworthinessAudioBatch
 
 
 class TrustworthinessClassifier(pl.LightningModule):
@@ -35,13 +32,12 @@ class TrustworthinessClassifier(pl.LightningModule):
         pooled_output = outputs.last_hidden_state.mean(dim=1)
         return self.linear(pooled_output)
 
-    def training_step(self, batch: TrustworthinessAudioBatch, batch_idx: int):
-        batch_size = batch.wav.shape[0]
+    def training_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int):
+        wav, mask, trustworthy = batch
+        batch_size = wav.shape[0]
 
-        y_pred = self(wav=batch.wav, mask=batch.mask)
-        loss = F.binary_cross_entropy_with_logits(
-            input=y_pred, target=batch.trustworthy
-        )
+        y_pred = self(wav=wav, mask=mask)
+        loss = F.binary_cross_entropy_with_logits(input=y_pred, target=trustworthy)
 
         self.log(
             "training_loss",
@@ -54,13 +50,12 @@ class TrustworthinessClassifier(pl.LightningModule):
 
         return loss
 
-    def validation_step(self, batch: TrustworthinessAudioBatch, batch_idx: int):
-        batch_size = batch.wav.shape[0]
+    def validation_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int):
+        wav, mask, trustworthy = batch
+        batch_size = wav.shape[0]
 
-        y_pred = self(wav=batch.wav, mask=batch.mask)
-        loss = F.binary_cross_entropy_with_logits(
-            input=y_pred, target=batch.trustworthy
-        )
+        y_pred = self(wav=wav, mask=mask)
+        loss = F.binary_cross_entropy_with_logits(input=y_pred, target=trustworthy)
 
         self.log(
             "validation_loss",
@@ -73,13 +68,12 @@ class TrustworthinessClassifier(pl.LightningModule):
 
         return loss
 
-    def test_step(self, batch: TrustworthinessAudioBatch, batch_idx: int):
-        batch_size = batch.wav.shape[0]
+    def test_step(self, batch: tuple[Tensor, Tensor, Tensor], batch_idx: int):
+        wav, mask, trustworthy = batch
+        batch_size = wav.shape[0]
 
-        y_pred = self(wav=batch.wav, mask=batch.mask)
-        loss = F.binary_cross_entropy_with_logits(
-            input=y_pred, target=batch.trustworthy
-        )
+        y_pred = self(wav=wav, mask=mask)
+        loss = F.binary_cross_entropy_with_logits(input=y_pred, target=trustworthy)
 
         self.log(
             "test_loss",
