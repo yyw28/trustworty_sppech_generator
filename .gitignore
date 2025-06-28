@@ -1,4 +1,5 @@
 .vscode
+datasets/
 
 # Custom ML project exclusions
 lightning_logs/

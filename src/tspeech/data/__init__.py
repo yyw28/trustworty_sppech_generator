@@ -1,1 +1,1 @@
-from tspeech.data.datamodule import ExampleDataModule
+from tspeech.data.tis_datamodule import TISDataModule

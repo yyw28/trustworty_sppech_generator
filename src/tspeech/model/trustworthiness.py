@@ -1,3 +1,4 @@
+import torchmetrics
 from lightning import pytorch as pl
 from torch import Tensor, nn
 from torch.nn import functional as F
@@ -5,12 +6,16 @@ from transformers import HubertModel
 
 
 class TrustworthinessClassifier(pl.LightningModule):
-    def __init__(self, hubert_model_name: str):
+    def __init__(self, hubert_model_name: str, trainable_layers: int):
         super().__init__()
         self.save_hyperparameters()
 
         self.hubert = HubertModel.from_pretrained(hubert_model_name)
         self.linear = nn.Sequential(nn.Linear(self.hubert.config.hidden_size, 1))
+
+        self.f1_val = torchmetrics.F1Score(task="binary")
+
+        self.trainable_layers = trainable_layers
 
     def forward(self, wav: Tensor, mask: Tensor) -> Tensor:
         """
@@ -36,6 +41,9 @@ class TrustworthinessClassifier(pl.LightningModule):
         wav, mask, trustworthy = batch
         batch_size = wav.shape[0]
 
+        for t in range(1, self.trainable_layers + 1):
+            self.hubert.encoder.layers[-t].train()
+
         y_pred = self(wav=wav, mask=mask)
         loss = F.binary_cross_entropy_with_logits(input=y_pred, target=trustworthy)
 
@@ -57,9 +65,19 @@ class TrustworthinessClassifier(pl.LightningModule):
         y_pred = self(wav=wav, mask=mask)
         loss = F.binary_cross_entropy_with_logits(input=y_pred, target=trustworthy)
 
+        self.f1_val(y_pred, trustworthy)
+
         self.log(
             "validation_loss",
             loss,
+            on_epoch=True,
+            on_step=False,
+            sync_dist=True,
+            batch_size=batch_size,
+        )
+        self.log(
+            "validation_f1",
+            self.f1_val,
             on_epoch=True,
             on_step=False,
             sync_dist=True,
