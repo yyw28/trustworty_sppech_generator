@@ -3,7 +3,7 @@ requires = ["setuptools>=75.8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "project"
+name = "trustworthy-speech-generation"
 version = "0.0.1"
 authors = [
   { name="Author Name", email="email@example.com" },
@@ -21,6 +21,7 @@ dependencies = [
     "pytest==8.4.1",
     "tensorboard==2.19.0",
     "torch==2.7.1",
+    "transformers==4.53.0"
 ]
 
 [tool.setuptools.package-data]
@@ -34,7 +35,7 @@ where = ["src"]
 "Bug Tracker" = "https://github.com/mattm458/ml-template/issues"
 
 [project.scripts]
-project = "project.main:cli_main"
+tspeech-hubert = "tspeech.hubert:cli_main"
 
 [tool.pytest.ini_options]
 addopts = [
