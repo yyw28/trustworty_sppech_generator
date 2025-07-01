@@ -1,0 +1,3 @@
+import torchaudio
+torchaudio.set_audio_backend("sox_io")
+torchaudio.load("/workspaces/trustworty_sppech_generator/Audio/recommendation_polite_audio/q8_F_saved_audio_files_wav/8_F_intensity_x-soft_pitch_medium_rate_medium.wav")
