@@ -1,0 +1,15 @@
+{
+  "total_original_items": 1413,
+  "total_filtered_items": 849,
+  "top_30_percent_count": 424,
+  "bottom_30_percent_count": 425,
+  "top_30_percentile_threshold": 0.8075220245621817,
+  "bottom_30_percentile_threshold": 0.22340955,
+  "filtered_scores_statistics": {
+    "min": -1.128530215,
+    "max": 4.8,
+    "mean": 1.5615690830638136,
+    "median": 0.22340955,
+    "std": 1.9049927942859464
+  }
+}
