@@ -1,0 +1,57 @@
+{
+    "data": {
+        "csv_file": "collected_ratings/processed_df_rec_hum.csv",
+        "audio_dir": "Audio/recommendation_humor_audio",
+        "batch_size": 4,
+        "num_workers": 5
+    },
+    "model": {
+        "hubert_model_name": "facebook/hubert-base-ls960",
+        "trainable_layers": 10
+    },
+    "optimizer": {
+        "class_path": "torch.optim.AdamW",
+        "init_args": {
+            "lr": 0.000001
+        }
+    },
+    "trainer": {
+        "callbacks": [
+            {
+                "class_path": "lightning.pytorch.callbacks.ModelCheckpoint",
+                "init_args": {
+                    "filename": "trustworthy_speech_checkpoint-{epoch}-{validation_loss:.5f}",
+                    "mode": "min",
+                    "monitor": "validation_loss",
+                    "save_top_k": 1
+                }
+            },
+            {
+                "class_path": "lightning.pytorch.callbacks.ModelCheckpoint",
+                "init_args": {
+                    "save_last": true
+                }
+            },
+            {
+                "class_path": "lightning.pytorch.callbacks.EarlyStopping",
+                "init_args": {
+                    "monitor": "validation_loss",
+                    "patience": 5,
+                    "mode": "min"
+                }
+            }
+        ],
+        "logger": {
+            "class_path": "lightning.pytorch.loggers.TensorBoardLogger",
+            "init_args": {
+                "default_hp_metric": false,
+                "name": "trustworthy_speech_finetune",
+                "save_dir": "lightning_logs"
+            }
+        },
+        "precision": "16-mixed",
+        "max_epochs": 50,
+        "accelerator": "auto",
+        "devices": "auto"
+    }
+} 
