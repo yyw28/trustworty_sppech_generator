@@ -1,8 +1,7 @@
 import os
 from os import path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
-import pandas as pd
 import torch
 import torchaudio
 from torch import Tensor
@@ -11,10 +10,9 @@ from torch.utils.data import Dataset
 
 class TrustworthySpeechDataset(Dataset):
     def __init__(
-        self, df: pd.DataFrame, audio_dir: str, idxs: list[int], sr: int = 16000
+        self, data_list: List[Dict[str, Any]], idxs: list[int], sr: int = 16000
     ):
-        self.df = df
-        self.audio_dir = audio_dir
+        self.data_list = data_list
         self.idxs = idxs
         self.sr = sr
 
@@ -24,36 +22,24 @@ class TrustworthySpeechDataset(Dataset):
     def __len__(self) -> int:
         return len(self.idxs)
 
-    def _find_audio_file(self, filename: str) -> Optional[str]:
-        """Find the audio file in the nested directory structure."""
-        # Remove .wav extension if present
-        if filename.endswith('.wav'):
-            filename = filename[:-4]
-        
-        # Search for the file in all subdirectories
-        for root, dirs, files in os.walk(self.audio_dir):
-            for file in files:
-                if file == f"{filename}.wav":
-                    return path.join(root, file)
-        return None
-
     def __getitem__(self, i: int, max_attempts=10):
         import warnings
 
         attempts = 0
         while attempts < max_attempts:
-            data = self.df.loc[self.idxs[i]].to_dict()
-            filename = data["filename"].strip()
+            data = self.data_list[self.idxs[i]]
+            file_path = data["file_path"]
             
-            # Find the audio file
-            audio_path = self._find_audio_file(filename)
+            # Get the full path to the audio file
+            base_dir = path.dirname(path.dirname(path.dirname(path.dirname(__file__))))
+            full_audio_path = path.join(base_dir, file_path)
             
-            if audio_path is None or not path.exists(audio_path):
+            if not path.exists(full_audio_path):
                 self.missing_count += 1
-                warnings.warn(f"Audio file not found: {filename}")
+                warnings.warn(f"Audio file not found: {full_audio_path}")
             else:
                 try:
-                    wav, orig_sr = torchaudio.load(audio_path)
+                    wav, orig_sr = torchaudio.load(full_audio_path)
                     
                     # Resample if necessary
                     if orig_sr != self.sr:
@@ -66,8 +52,8 @@ class TrustworthySpeechDataset(Dataset):
                     # Create attention mask (all True for now)
                     mask = torch.ones_like(wav, dtype=torch.bool)
                     
-                    # Get trustworthy score (normalize to 0-1 range if needed)
-                    trustworthy_score = data["trustworthy"]
+                    # Get trustworthy score from JSON data
+                    trustworthy_score = data["trustworthy_score"]
                     # Convert to binary classification if needed
                     # You can adjust this threshold based on your needs
                     trustworthy_binary = torch.tensor(
@@ -77,7 +63,7 @@ class TrustworthySpeechDataset(Dataset):
                     return wav, mask, trustworthy_binary
                 except Exception as e:
                     self.missing_count += 1
-                    warnings.warn(f"Could not load audio file: {audio_path} ({e})")
+                    warnings.warn(f"Could not load audio file: {full_audio_path} ({e})")
             
             i = (i + 1) % len(self)
             attempts += 1

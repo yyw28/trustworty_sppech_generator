@@ -1,0 +1,9 @@
+torch
+lightning
+transformers
+torchaudio
+scikit-learn
+pandas
+numpy
+pyttsx3
+gTTS 
