@@ -12,4 +12,6 @@ To fine-tune the HuBERT model, run the following command:
 tspeech-hubert fit --config <path to a HuBERT config file>
 ```
 
+If you are training in a multi-GPU environment, you must give `--trainer.strategy ddp_find_unused_parameters_true` as an additional argument.
+
 Sample config files are provided in the `config/` directory.
