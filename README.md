@@ -1,19 +1,17 @@
-# Machine Learning Template Repository
+# Trustworthy speech study
 
-This repository contains a template for all of my ML projects. The template includes the following components:
+This repository contains a variety of models for recognizing and synthesizing trustworthy speech.
 
-- Basic project structure built around PyTorch Lightning, including example models, dataloaders, tests, etc.
-- A basic pyproject.toml file, including imports I use in most projects.
-- A simple executable that bootstraps [Lightning CLI](https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.cli.LightningCLI.html).
+## Trustworthy speech recognition
 
-Once you make your own project from this repository, create a virtual environment, enter it, then run:
+This task fine-tuning a HuBERT model to determine trustworthiness of speech, either through binary classification (trustworthy/not-trustworthy). It is currently configred to work with two datasets: the [TIS corpus](https://osf.io/45d8j/) and/or a synthetic dataset of speech samples rated for trustworthiness (contained in this project).
 
-```pip install -e .```
-
-Please use the `config/` directory to manage different model configurations.
-
-Once you have customized the repository, start training with:
+To fine-tune the HuBERT model, run the following command:
 
 ```
-<executable name> fit --config config/<configuration file>.json
+tspeech-hubert fit --config <path to a HuBERT config file>
 ```
+
+If you are training in a multi-GPU environment, you must give `--trainer.strategy ddp_find_unused_parameters_true` as an additional argument.
+
+Sample config files are provided in the `config/` directory.

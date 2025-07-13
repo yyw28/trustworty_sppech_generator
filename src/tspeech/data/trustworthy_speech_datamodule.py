@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
 from tspeech.data.trustworthy_speech_collate_fn import collate_fn
-from tspeech.data.trustworthy_speech_dataset import TrustworthySpeechDataset
+from tspeech.data.synth_speech_dataset import SynthSpeechDataset
 
 
 class TrustworthySpeechDataModule(LightningDataModule):
@@ -46,18 +46,18 @@ class TrustworthySpeechDataModule(LightningDataModule):
     def setup(self, stage: str):
         match stage:
             case "fit":
-                self.dataset_train = TrustworthySpeechDataset(
+                self.dataset_train = SynthSpeechDataset(
                     df=self.df, audio_dir=self.audio_dir, idxs=self.train_ids
                 )
-                self.dataset_validate = TrustworthySpeechDataset(
+                self.dataset_validate = SynthSpeechDataset(
                     df=self.df, audio_dir=self.audio_dir, idxs=self.val_ids
                 )
             case "validate":
-                self.dataset_validate = TrustworthySpeechDataset(
+                self.dataset_validate = SynthSpeechDataset(
                     df=self.df, audio_dir=self.audio_dir, idxs=self.val_ids
                 )
             case "test":
-                self.dataset_test = TrustworthySpeechDataset(
+                self.dataset_test = SynthSpeechDataset(
                     df=self.df, audio_dir=self.audio_dir, idxs=self.test_ids
                 )
 

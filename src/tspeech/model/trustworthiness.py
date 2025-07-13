@@ -1,4 +1,3 @@
-import torch
 import torchmetrics
 from lightning import pytorch as pl
 from torch import Tensor, nn
@@ -104,7 +103,3 @@ class TrustworthinessClassifier(pl.LightningModule):
         )
 
         return loss
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4)
-        return optimizer
