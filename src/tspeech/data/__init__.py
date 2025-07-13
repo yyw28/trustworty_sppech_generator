@@ -1,2 +1,1 @@
-from tspeech.data.tis_datamodule import TISDataModule
-from tspeech.data.trustworthy_speech_datamodule import TrustworthySpeechDataModule
+from tspeech.data.trustworthiness_datamodule import TrustworthinessDataModule

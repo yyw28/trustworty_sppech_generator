@@ -1,5 +1,5 @@
 .vscode
-datasets/
+datasets/tis
 
 # Custom ML project exclusions
 lightning_logs/
