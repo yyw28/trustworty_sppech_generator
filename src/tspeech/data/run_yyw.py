@@ -48,18 +48,21 @@ valid_mask = df.apply(is_valid_audio, axis=1, dataset_dir=dataset_dir)
 print(f"Valid audio files: {valid_mask.sum()} / {len(df)}")
 df = df[valid_mask].reset_index(drop=True)
 
-# 2. Split indices for train/val
+# 2. Split indices for train/val/test
 from sklearn.model_selection import train_test_split
 idxs = list(range(len(df)))
-train_idxs, val_idxs = train_test_split(idxs, test_size=0.2, random_state=42)
+train_idxs, temp_idxs = train_test_split(idxs, test_size=0.2, random_state=42)
+val_idxs, test_idxs = train_test_split(temp_idxs, test_size=0.5, random_state=42)
 
 # 3. Create Datasets
 train_dataset = TISDataset(df, dataset_dir, train_idxs)
 val_dataset = TISDataset(df, dataset_dir, val_idxs)
+test_dataset = TISDataset(df, dataset_dir, test_idxs)
 
 # 4. Create DataLoaders
 train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=8)
+test_loader = DataLoader(test_dataset, batch_size=8)
 
 # 5. Instantiate the model
 model = TrustworthinessClassifier(
@@ -70,3 +73,6 @@ model = TrustworthinessClassifier(
 # 6. Train
 trainer = Trainer(max_epochs=10, accelerator="auto")
 trainer.fit(model, train_loader, val_loader)
+
+# 7. Test
+trainer.test(model, test_loader)
