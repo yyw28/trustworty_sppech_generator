@@ -1,6 +1,7 @@
 import os
 from os import path
-from typing import Final
+from typing import Final, List, Dict, Any
+import json
 
 import pandas as pd
 from lightning import LightningDataModule
@@ -8,57 +9,107 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 
 from tspeech.data.trustworthy_speech_collate_fn import collate_fn
-from tspeech.data.synth_speech_dataset import SynthSpeechDataset
+from tspeech.data.trustworthy_speech_dataset import TrustworthySpeechDataset
 
 
 class TrustworthySpeechDataModule(LightningDataModule):
-    def __init__(self, csv_file: str, audio_dir: str, batch_size: int, num_workers: int):
+    def __init__(self, json_file: str = None, batch_size: int = 4, num_workers: int = 5, 
+                 train_ratio: float = 0.5, val_ratio: float = 0.2, test_ratio: float = 0.3,
+                 random_state: int = 42):
         super().__init__()
 
         self.num_workers = num_workers
-        self.csv_file = csv_file
-        self.audio_dir = audio_dir
         self.batch_size = batch_size
+        self.train_ratio = train_ratio
+        self.val_ratio = val_ratio
+        self.test_ratio = test_ratio
+        self.random_state = random_state
 
-        # Load the CSV file
-        df = pd.read_csv(csv_file)
+        # Use the JSON file if provided, otherwise use default
+        if json_file is None:
+            base_dir = path.dirname(path.dirname(path.dirname(path.dirname(__file__))))
+            self.json_file = path.join(base_dir, "src", "tspeech", "data", "data_convertion_filter", 
+                                     "audio_trustworthy_mapping_filtered.json")
+        else:
+            self.json_file = json_file
+
+        # Load and process data from JSON
+        self.data_list = self._load_json_data()
         
-        # Filter out rows where audio files don't exist
-        wav_files: set[str] = set()
-        for root, dirs, files in os.walk(audio_dir):
-            for file in files:
-                if file.endswith(".wav"):
-                    wav_files.add(file)
-
-        # Filter dataframe to only include files that exist
-        df = df[df['filename'].isin(wav_files)]
-        self.df: Final[pd.DataFrame] = df
-
         # Split the data
-        train_ids, test_ids = train_test_split(
-            list(self.df.index), train_size=0.8, random_state=42
+        self.train_ids, self.val_ids, self.test_ids = self._split_data()
+
+    def _load_json_data(self) -> List[Dict[str, Any]]:
+        """Load data from the JSON file and filter for existing audio files."""
+        if not path.exists(self.json_file):
+            raise FileNotFoundError(f"JSON file not found: {self.json_file}")
+        
+        print(f"Loading data from: {self.json_file}")
+        
+        with open(self.json_file, 'r') as f:
+            data_list = json.load(f)
+        
+        print(f"Loaded {len(data_list)} entries from JSON file")
+        
+        # Filter for existing audio files
+        filtered_data = []
+        base_dir = path.dirname(path.dirname(path.dirname(path.dirname(__file__))))
+        
+        for entry in data_list:
+            file_path = entry['file_path']
+            full_path = path.join(base_dir, file_path)
+            
+            if path.exists(full_path):
+                filtered_data.append(entry)
+            else:
+                print(f"Audio file not found: {full_path}")
+        
+        print(f"Found {len(filtered_data)} existing audio files out of {len(data_list)} entries")
+        
+        return filtered_data
+
+    def _split_data(self) -> tuple[List[int], List[int], List[int]]:
+        """Split data into train, validation, and test sets."""
+        total_samples = len(self.data_list)
+        
+        # Calculate split sizes
+        train_size = int(total_samples * self.train_ratio)
+        val_size = int(total_samples * self.val_ratio)
+        test_size = total_samples - train_size - val_size
+        
+        print(f"Data split: Train={train_size}, Val={val_size}, Test={test_size}")
+        
+        # Split the data
+        train_ids, temp_ids = train_test_split(
+            list(range(total_samples)), 
+            train_size=train_size, 
+            random_state=self.random_state
         )
-        val_ids, test_ids = train_test_split(test_ids, test_size=0.5, random_state=42)
-        self.train_ids = train_ids
-        self.val_ids = val_ids
-        self.test_ids = test_ids
+        
+        val_ids, test_ids = train_test_split(
+            temp_ids, 
+            train_size=val_size, 
+            random_state=self.random_state
+        )
+        
+        return train_ids, val_ids, test_ids
 
     def setup(self, stage: str):
         match stage:
             case "fit":
-                self.dataset_train = SynthSpeechDataset(
-                    df=self.df, audio_dir=self.audio_dir, idxs=self.train_ids
+                self.dataset_train = TrustworthySpeechDataset(
+                    data_list=self.data_list, idxs=self.train_ids
                 )
-                self.dataset_validate = SynthSpeechDataset(
-                    df=self.df, audio_dir=self.audio_dir, idxs=self.val_ids
+                self.dataset_validate = TrustworthySpeechDataset(
+                    data_list=self.data_list, idxs=self.val_ids
                 )
             case "validate":
-                self.dataset_validate = SynthSpeechDataset(
-                    df=self.df, audio_dir=self.audio_dir, idxs=self.val_ids
+                self.dataset_validate = TrustworthySpeechDataset(
+                    data_list=self.data_list, idxs=self.val_ids
                 )
             case "test":
-                self.dataset_test = SynthSpeechDataset(
-                    df=self.df, audio_dir=self.audio_dir, idxs=self.test_ids
+                self.dataset_test = TrustworthySpeechDataset(
+                    data_list=self.data_list, idxs=self.test_ids
                 )
 
     def train_dataloader(self) -> DataLoader:
