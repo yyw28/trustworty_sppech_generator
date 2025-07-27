@@ -18,118 +18,80 @@ from tspeech.model.trustworthiness import TrustworthinessClassifier
 
 
 class SimpleTTSPipeline:
-    """A simple TTS pipeline that converts text to speech and rates trustworthiness."""
+    """A simple TTS pipeline using gTTS for real speech synthesis."""
     
     def __init__(self, hubert_checkpoint_path: str, device: str = 'cpu'):
         self.device = torch.device(device)
         
         # Load the trained HuBERT model
         print("Loading HuBERT trustworthiness classifier...")
-        
-        # Create model instance first
         self.model = TrustworthinessClassifier(
             hubert_model_name="facebook/hubert-base-ls960",
             trainable_layers=10
         )
-        
-        # Load checkpoint weights
         checkpoint = torch.load(hubert_checkpoint_path, map_location='cpu')
         self.model.load_state_dict(checkpoint['state_dict'])
-        
-        # Move to device and set eval mode
         self.model = self.model.to(self.device)
         self.model.eval()
         print("✅ Model loaded successfully!")
         
         # Check TTS availability
-        self.tts_available = self._check_tts_availability()
-        
+        self._check_tts_availability()
+    
     def _check_tts_availability(self):
-        """Check which TTS systems are available."""
-        available = {}
-        
-        # Check gTTS (Google TTS - online)
+        """Check if gTTS is available."""
         try:
             from gtts import gTTS
-            available['gtts'] = True
-            print("✅ gTTS available (online TTS)")
+            print("✅ gTTS available (real speech)")
         except ImportError:
-            available['gtts'] = False
             print("❌ gTTS not available. Install with: pip install gTTS")
-        
-        # Check pydub for audio conversion
-        try:
-            from pydub import AudioSegment
-            available['pydub'] = True
-            print("✅ pydub available (audio conversion)")
-        except ImportError:
-            available['pydub'] = False
-            print("❌ pydub not available. Install with: pip install pydub")
-        
-        return available
+            sys.exit(1)
     
-    def synthesize_with_gtts(self, text: str, output_path: str, style: str = 'neutral'):
-        """Synthesize speech using gTTS (online)."""
+    def synthesize_speech(self, text: str, output_path: str, style: str = 'neutral'):
+        """Synthesize speech using gTTS."""
         from gtts import gTTS
         
+        print(f"Generating speech for style: {style}")
+        
         # Adjust speech rate based on style
-        slow_speech = style == 'untrustworthy'  # Slower for untrustworthy
+        slow_speech = style == 'untrustworthy'
         
         # Create TTS instance
         tts = gTTS(text=text, lang='en', slow=slow_speech)
         
-        # Save as MP3 first (gTTS default)
+        # Save as MP3 first
         mp3_path = output_path.replace('.wav', '.mp3')
         tts.save(mp3_path)
         
         # Convert MP3 to WAV
-        if self.tts_available.get('pydub', False):
-            try:
-                from pydub import AudioSegment
-                audio = AudioSegment.from_mp3(mp3_path)
-                audio.export(output_path, format="wav")
-                print(f"✅ Converted MP3 to WAV: {output_path}")
-                os.remove(mp3_path)  # Clean up MP3
-            except Exception as e:
-                print(f"❌ pydub conversion failed: {e}")
-                # Try ffmpeg as fallback
-                self._convert_with_ffmpeg(mp3_path, output_path)
-        else:
-            # Try ffmpeg directly
-            self._convert_with_ffmpeg(mp3_path, output_path)
+        self._convert_mp3_to_wav(mp3_path, output_path)
         
         return output_path
     
-    def _convert_with_ffmpeg(self, mp3_path: str, wav_path: str):
+    def _convert_mp3_to_wav(self, mp3_path: str, wav_path: str):
         """Convert MP3 to WAV using ffmpeg."""
         try:
             cmd = ['ffmpeg', '-i', mp3_path, '-acodec', 'pcm_s16le', '-ar', '16000', wav_path, '-y']
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
-                print(f"✅ Converted MP3 to WAV using ffmpeg: {wav_path}")
+                print(f"✅ Converted to WAV: {wav_path}")
                 os.remove(mp3_path)  # Clean up MP3
             else:
-                print(f"❌ ffmpeg conversion failed: {result.stderr}")
+                print(f"❌ ffmpeg failed: {result.stderr}")
                 
         except FileNotFoundError:
             print("❌ ffmpeg not found. Please install ffmpeg: brew install ffmpeg")
         except Exception as e:
-            print(f"❌ ffmpeg error: {e}")
+            print(f"❌ Conversion error: {e}")
     
     def synthesize_text(self, text: str, style: str = 'neutral') -> str:
-        """Synthesize text to speech using gTTS."""
-        if not self.tts_available.get('gtts', False):
-            raise RuntimeError("gTTS not available. Install with: pip install gTTS")
-        
-        output_path = f"tts_{style}.wav"
-        print(f"Generating speech with gTTS for style: {style}")
-        
-        return self.synthesize_with_gtts(text, output_path, style)
+        """Synthesize text to speech."""
+        output_path = f"speech_{style}.wav"
+        return self.synthesize_speech(text, output_path, style)
     
     def load_and_preprocess_audio(self, audio_path: str) -> torch.Tensor:
         """Load audio file and preprocess for HuBERT."""
-        # Load audio
         waveform, sample_rate = torchaudio.load(audio_path)
         
         # Convert to mono if stereo
@@ -141,14 +103,10 @@ class SimpleTTSPipeline:
             resampler = torchaudio.transforms.Resample(sample_rate, 16000)
             waveform = resampler(waveform)
         
-        # Move to device
-        waveform = waveform.to(self.device)
-        
-        return waveform
+        return waveform.to(self.device)
     
     def rate_trustworthiness(self, waveform: torch.Tensor) -> float:
-        """Rate the trustworthiness of the audio using HuBERT."""
-        # Create attention mask
+        """Rate the trustworthiness of the audio."""
         mask = torch.ones_like(waveform, dtype=torch.bool)
         
         with torch.no_grad():
@@ -159,7 +117,6 @@ class SimpleTTSPipeline:
     
     def synthesize_and_rate(self, text: str, style: str = 'neutral') -> dict:
         """Synthesize text to speech and rate its trustworthiness."""
-        
         # Synthesize speech
         audio_path = self.synthesize_text(text, style)
         
@@ -197,7 +154,6 @@ class SimpleTTSPipeline:
                 print(f"{style:12}: Error - {e}")
         
         if results:
-            # Find best and worst styles
             best_style = max(results, key=lambda x: x['trustworthiness_score'])
             worst_style = min(results, key=lambda x: x['trustworthiness_score'])
             
@@ -221,11 +177,6 @@ def main():
     
     # Initialize pipeline
     pipeline = SimpleTTSPipeline(checkpoint_path, device='cpu')
-    
-    if not pipeline.tts_available.get('gtts', False):
-        print("\n❌ gTTS not available!")
-        print("Please install: pip install gTTS")
-        return
     
     # Demo 1: Basic synthesis and rating
     print("\n" + "=" * 50)
@@ -255,7 +206,7 @@ def main():
     print("=" * 50)
     print("Generated audio files:")
     for file in os.listdir('.'):
-        if file.startswith('tts_') and file.endswith('.wav'):
+        if file.startswith('speech_') and file.endswith('.wav'):
             size = os.path.getsize(file)
             print(f"- {file} ({size} bytes)")
 

@@ -1,7 +1,9 @@
 {
     "data": {
         "batch_size": 4,
-        "dataset_dir": "datasets/tis",
+        "datasets": {
+            "tis": "datasets/tis"
+        },
         "num_workers": 5
     },
     "model": {
